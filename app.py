@@ -56,17 +56,11 @@ def book_hall(hall_name, date, start_time, end_time):
     conn.close()
     return "Booking successful."
 
-def cancel_booking(hall_name, date, start_time, end_time):
+def cancel_booking_by_id(booking_id):
     conn = sqlite3.connect('hall_booking.db')
     cursor = conn.cursor()
     
-    date_str = date.strftime('%Y-%m-%d')
-    start_time_str = start_time.strftime('%H:%M')
-    end_time_str = end_time.strftime('%H:%M')
-    
-    cursor.execute('''
-        DELETE FROM bookings WHERE hall_name=? AND date=? AND start_time=? AND end_time=?
-    ''', (hall_name, date_str, start_time_str, end_time_str))
+    cursor.execute('DELETE FROM bookings WHERE id=?', (booking_id,))
     
     if cursor.rowcount == 0:
         conn.close()
@@ -77,7 +71,7 @@ def cancel_booking(hall_name, date, start_time, end_time):
     return "Booking cancelled."
 
 def update_booking(old_hall_name, old_date, old_start_time, old_end_time, new_hall_name, new_date, new_start_time, new_end_time):
-    cancel_result = cancel_booking(old_hall_name, old_date, old_start_time, old_end_time)
+    cancel_result = cancel_booking_by_id(old_hall_name, old_date, old_start_time, old_end_time)
     if cancel_result == "Booking cancelled.":
         return book_hall(new_hall_name, new_date, new_start_time, new_end_time)
     else:
@@ -143,6 +137,20 @@ def validate_datetime(date, start_time, end_time):
         st.error("Incorrect date or time format.")
         return False
 
+def list_bookings():
+    conn = sqlite3.connect('hall_booking.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT id, hall_name, date, start_time, end_time FROM bookings')
+    bookings = cursor.fetchall()
+    
+    conn.close()
+    
+    if not bookings:
+        return "No bookings found."
+    
+    return bookings
+
 create_database()
 
 st.title("Hall Booking System")
@@ -162,13 +170,27 @@ if choice == "Book a Hall":
 
 elif choice == "Cancel a Booking":
     st.subheader("Cancel a Booking")
-    hall_name = st.selectbox("Select Hall", VALID_HALLS)
-    date = st.date_input("Select Date")
-    start_time = st.time_input("Start Time")
-    end_time = st.time_input("End Time")
-    if st.button("Cancel"):
-        result = cancel_booking(hall_name, date, start_time, end_time)
-        st.success(result)
+    bookings = list_bookings()
+    
+    if bookings == "No bookings found.":
+        st.write(bookings)
+    else:
+        ini = 1
+        for booking in bookings:
+            booking_id, hall_name, date, start_time, end_time = booking
+            # st.write(f"S.no. : {ini}, Hall: {hall_name},  Date: {date},  Start Time: {start_time},  End Time: {end_time}")
+            st.markdown(f"""
+                **S.no.:** {ini},  
+                **Hall:** {hall_name},  
+                **Date:** {date},  
+                **Start Time:** {start_time},  
+                **End Time:** {end_time}
+            """)
+            ini+=1
+            if st.button(f"Cancel", key=f"cancel_{booking_id}"):
+                result = cancel_booking_by_id(booking_id)
+                st.success(result)
+            st.write('')
 
 elif choice == "Update a Booking":
     st.subheader("Update a Booking")
